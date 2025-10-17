@@ -1,0 +1,15 @@
+spring:
+  jackson:
+    time-zone: Asia/Ho_Chi_Minh
+  application:
+    name: eureka-server-service
+  profiles:
+    active: ${common.env}
+  config:
+    import: optional:classpath:common-service.properties
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+      - org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
+server:
+  port: ${eureka.port}

@@ -1,0 +1,28 @@
+spring:
+  jackson:
+    time-zone: Asia/Ho_Chi_Minh
+  application:
+    name: api-gateway-service
+  profiles:
+    active: ${common.env}
+  config:
+    import: optional:classpath:common-service.properties
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+      - org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
+      - org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration
+      - org.springframework.boot.autoconfigure.security.reactive.ReactiveSecurityAutoConfiguration
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
+    discovery:
+      enabled: true
+  main:
+    web-application-type: reactive
+
+server:
+  port: ${api-gateway.port}

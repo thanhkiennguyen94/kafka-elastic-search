@@ -1,0 +1,11 @@
+spring:
+  jackson:
+    time-zone: Asia/Ho_Chi_Minh
+  application:
+    name: order-service
+  profiles:
+    active: ${common.env}
+  config:
+    import: optional:classpath:common-service.properties
+server:
+  port: ${order.port}

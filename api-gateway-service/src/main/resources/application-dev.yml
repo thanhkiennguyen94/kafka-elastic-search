@@ -1,0 +1,9 @@
+eureka:
+  instance:
+    prefer-ip-address: true
+    hostname: ${hostname.local}
+  client:
+    service-url:
+      defaultZone: ${hostname.local}:${eureka.port}/eureka
+    fetch-registry: true
+    register-with-eureka: true
