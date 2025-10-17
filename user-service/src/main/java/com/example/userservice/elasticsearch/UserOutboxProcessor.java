@@ -16,10 +16,11 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class UserOutboxProcessor {
-    private final OutboxRepository outboxRepository;       // dùng same Outbox table
+    private final OutboxRepository outboxRepository;
     private final UserElasticRepository userElasticRepository;
     private final ObjectMapper objectMapper;
     private static final int MAX_RETRY = 3;
+
     // xử lý theo schedule
     @Scheduled(fixedDelay = 5000)
     public void processUserOutbox() {
@@ -29,7 +30,6 @@ public class UserOutboxProcessor {
         }
     }
 
-    // xử lý 1 event riêng (call trực tiếp)
     public void processSingleEvent(OutboxEvent event) {
         if (!ConstantType.TYPE_USER.equals(event.getAggregateType()) ||
                 !ConstantEventType.EVENT_CREATE_USER.equals(event.getEventType())) {

@@ -1,10 +1,7 @@
 spring:
   data:
     elasticsearch:
-      client:
-        endpoints: ${hostname.local}:${elasticsearch.port}
-        username: elastic
-        password: changeme
+      uris: http://localhost:9200
   datasource:
     url: jdbc:mysql://localhost:3306/user_service?serverTimezone=UTC
     username: root

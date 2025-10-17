@@ -1,6 +1,8 @@
 package com.example.commonservice.outbox;
 import com.example.commonservice.event.CreateUserEvent;
+import com.example.commonservice.exception_handler.exception.SystemErrorException;
 import com.example.commonservice.util.ConstantEventType;
+import com.example.commonservice.util.ConstantUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,21 +28,30 @@ public class OutboxService {
      * Lưu sự kiện vào bảng outbox, để commit cùng transaction với entity chính
      */
     @Transactional
-    public void saveEvent(String aggregateType, Long aggregateId, String eventType, Object payload) {
+    public OutboxEvent saveEvent(String aggregateType, Long aggregateId, String eventType, Object payload) {
         try {
-            String json = objectMapper.writeValueAsString(payload);
+            String json;
+            // Nếu payload đã là JSON String thì không cần serialize nữa
+            if (payload instanceof String str) {
+                json = str;
+            } else {
+                json = objectMapper.writeValueAsString(payload);
+            }
+
             OutboxEvent event = OutboxEvent.builder()
                     .aggregateType(aggregateType)
                     .aggregateId(aggregateId)
                     .eventType(eventType)
                     .payload(json)
                     .statusOrder(OutboxStatus.PENDING)
+                    .statusElastic(OutboxStatus.PENDING)
                     .build();
-            outboxRepository.save(event);
             log.info("🟡 Outbox event saved: {} - {}", eventType, aggregateId);
+            return outboxRepository.save(event);
         } catch (Exception e) {
             log.error("❌ Failed to save outbox event: {}", e.getMessage(), e);
         }
+        throw new SystemErrorException(ConstantUtils.SYSTEM_ERROR_MSG);
     }
 
 

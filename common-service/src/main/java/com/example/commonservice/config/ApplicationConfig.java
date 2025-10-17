@@ -13,15 +13,6 @@ import org.springframework.context.annotation.Configuration;
 @RequiredArgsConstructor
 public class ApplicationConfig {
 
-    //    config object mapper local datetime
-    @Bean
-    public ObjectMapper objectMapper() {
-        ObjectMapper mapper = new ObjectMapper();
-        mapper.registerModule(new JavaTimeModule());
-        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-        return mapper;
-    }
-
     @Bean
     public ModelMapper modelMapper() {
         ModelMapper modelMapper = new ModelMapper();
