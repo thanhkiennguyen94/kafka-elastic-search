@@ -43,49 +43,42 @@ public class OutboxService {
         }
     }
 
-    /**
-     * 🕐 Chạy mỗi 5s để gửi event sang Kafka
-     */
+
+    // Chạy theo schedule
     @Scheduled(fixedDelay = 5000)
-    public void processPendingEvents() {
+    public void processOrderOutbox() {
         List<OutboxEvent> events = outboxRepository.findTop50ByStatusOrderOrderByIdAsc(OutboxStatus.PENDING);
-        if (events.isEmpty()) return;
-
         for (OutboxEvent event : events) {
-            try {
+            processSingleEvent(event);
+        }
+    }
+
+    // Xử lý 1 event riêng
+    public void processSingleEvent(OutboxEvent event) {
+        try {
+            Object payloadObj = null;
+            if (ConstantEventType.EVENT_CREATE_USER.equals(event.getEventType())) {
+                payloadObj = objectMapper.readValue(event.getPayload(), CreateUserEvent.class);
+            }
+            // TODO: xử lý các event khác nếu có
+
+            if (payloadObj != null) {
                 String topic = event.getAggregateType().toLowerCase() + "-created-topic";
-
-                // Deserialize payload thành object tương ứng
-                Object payloadObj;
-                if (event.getEventType().equals(ConstantEventType.EVENT_CREATE_USER)) {
-                    payloadObj = objectMapper.readValue(event.getPayload(), CreateUserEvent.class);
-                    // TODO: các event khác
-                } else {
-                    payloadObj = event.getPayload(); // fallback string
-                }
-
-                // Gửi object sang Kafka
                 kafkaTemplate.send(topic, payloadObj);
 
                 event.setStatusOrder(OutboxStatus.SENT);
-                event.setRetryCount(event.getRetryCount() + 1);
                 event.setLastError(null);
                 outboxRepository.save(event);
 
-                log.info("✅ Sent OutboxEvent id={} to topic={}", event.getId(), topic);
-
-            } catch (Exception ex) {
-                event.setRetryCount(event.getRetryCount() + 1);
-                event.setLastError(ex.getMessage());
-
-                if (event.getRetryCount() >= MAX_RETRY) {
-                    event.setStatusOrder(OutboxStatus.FAILED);
-                    log.error("❌ Failed after {} retries: id={} error={}", MAX_RETRY, event.getId(), ex.getMessage());
-                } else {
-                    log.warn("⚠️ Retry {}/{} for event id={}", event.getRetryCount(), MAX_RETRY, event.getId());
-                }
-                outboxRepository.save(event);
+                log.info("✅ Sent Order OutboxEvent id={} to topic={}", event.getId(), topic);
             }
+        } catch (Exception ex) {
+            event.setRetryCount(event.getRetryCount() + 1);
+            event.setLastError(ex.getMessage());
+            if (event.getRetryCount() >= MAX_RETRY) {
+                event.setStatusOrder(OutboxStatus.FAILED);
+            }
+            outboxRepository.save(event);
         }
     }
 

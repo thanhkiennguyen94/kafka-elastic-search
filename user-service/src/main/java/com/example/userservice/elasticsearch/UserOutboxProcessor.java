@@ -19,44 +19,42 @@ public class UserOutboxProcessor {
     private final OutboxRepository outboxRepository;       // dùng same Outbox table
     private final UserElasticRepository userElasticRepository;
     private final ObjectMapper objectMapper;
-
+    private static final int MAX_RETRY = 3;
+    // xử lý theo schedule
     @Scheduled(fixedDelay = 5000)
     public void processUserOutbox() {
         List<OutboxEvent> events = outboxRepository.findTop50ByStatusElasticOrderByIdAsc(OutboxStatus.PENDING);
-        if (events.isEmpty()) return;
-
         for (OutboxEvent event : events) {
-            try {
-                if (ConstantType.TYPE_USER.equals(event.getAggregateType())
-                        && ConstantEventType.EVENT_CREATE_USER.equals(event.getEventType())) {
+            processSingleEvent(event);
+        }
+    }
 
-                    // Deserialize payload
-                    CreateUserEvent payload = objectMapper.readValue(event.getPayload(), CreateUserEvent.class);
+    // xử lý 1 event riêng (call trực tiếp)
+    public void processSingleEvent(OutboxEvent event) {
+        if (!ConstantType.TYPE_USER.equals(event.getAggregateType()) ||
+                !ConstantEventType.EVENT_CREATE_USER.equals(event.getEventType())) {
+            return;
+        }
 
-                    // Map sang UserDocument
-                    UserDocument doc = UserDocument.builder()
-                            .id(payload.getUserId())
-                            .username(payload.getUsername())
-                            .email(payload.getEmail())
-                            .build();
+        try {
+            CreateUserEvent payload = objectMapper.readValue(event.getPayload(), CreateUserEvent.class);
+            UserDocument doc = UserDocument.builder()
+                    .id(payload.getUserId())
+                    .username(payload.getUsername())
+                    .email(payload.getEmail())
+                    .build();
+            userElasticRepository.save(doc);
 
-                    // Save lên Elasticsearch
-                    userElasticRepository.save(doc);
-
-                    // Update status Outbox
-                    event.setStatusElastic(OutboxStatus.SENT);
-                    event.setRetryCount(event.getRetryCount() + 1);
-                    event.setLastError(null);
-                    outboxRepository.save(event);
-                }
-            } catch (Exception e) {
-                event.setRetryCount(event.getRetryCount() + 1);
-                event.setLastError(e.getMessage());
-                if (event.getRetryCount() >= 3) {
-                    event.setStatusElastic(OutboxStatus.FAILED);
-                }
-                outboxRepository.save(event);
+            event.setStatusElastic(OutboxStatus.SENT);
+            event.setLastError(null);
+            outboxRepository.save(event);
+        } catch (Exception e) {
+            event.setRetryCount(event.getRetryCount() + 1);
+            event.setLastError(e.getMessage());
+            if (event.getRetryCount() >= MAX_RETRY) {
+                event.setStatusElastic(OutboxStatus.FAILED);
             }
+            outboxRepository.save(event);
         }
     }
 }

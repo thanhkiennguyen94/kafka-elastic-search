@@ -5,11 +5,14 @@ import com.example.commonservice.entity.PageResponse;
 import com.example.commonservice.event.CreateUserEvent;
 import com.example.commonservice.outbox.OutboxEvent;
 import com.example.commonservice.outbox.OutboxRepository;
+import com.example.commonservice.outbox.OutboxService;
 import com.example.commonservice.outbox.OutboxStatus;
+import com.example.commonservice.util.ConstantTopic;
 import com.example.commonservice.util.ConstantUtils;
 import com.example.commonservice.util.PageMapperUtil;
 import com.example.userservice.elasticsearch.UserDocument;
 import com.example.userservice.elasticsearch.UserElasticRepository;
+import com.example.userservice.elasticsearch.UserOutboxProcessor;
 import com.example.userservice.model.User;
 import com.example.userservice.repository.UserRepository;
 import com.example.userservice.request.User.CreateUserDTORequest;
@@ -21,6 +24,7 @@ import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,7 +37,9 @@ public class UserServiceImpl implements UserService {
     private final ObjectMapper objectMapper;
     private final OutboxRepository outboxRepository;
     private final UserElasticRepository userElasticRepository;
-
+    private final UserOutboxProcessor userOutboxProcessor;
+    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final OutboxService outboxService;
     @Override
     public ApiResponse<PageResponse<ListUserDTOResponse>> getAll(Pageable pageable, String search) {
 //        Page<User> userPage = userRepository.findAll(pageable, search);
@@ -61,6 +67,11 @@ public class UserServiceImpl implements UserService {
             throw new RuntimeException(e);
         }
         outboxRepository.save(event);
+        // xử lý ngay (synchronous) → dữ liệu Order có ngay
+        outboxService.processSingleEvent(event);
+        // xử lý ngay (synchronous) → dữ liệu Elastic có ngay
+        userOutboxProcessor.processSingleEvent(event);
+
         return ApiResponse.success(null, ConstantUtils.CREATE_SUCCESSFULLY);
     }
 }
